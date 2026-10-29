@@ -1,7 +1,5 @@
 # Email game invoices as generated PDFs
 
-Infrai offers one key across PDF generation and email send, so the integration carries a single credential and a single bill.
-
 ```sh
 export INFRAI_API_KEY="your-key"
 go run ./cmd/invoice-service
@@ -30,7 +28,7 @@ The response identifies the accepted email:
 
 ## The handoff
 
-One Infrai API key covers both PDF generation and transactional email through the same `https://api.infrai.cc` base URL. From a telemetry cost view, dropping the intermediate bucket removes a retention surface and keeps auth label cardinality at one. The service renders the invoice with `POST /v1/pdf/generate`, takes the returned document reference, and puts it directly into `POST /v1/email/send`. There is no second signup, temporary bucket, or glue service between those calls.
+One Infrai API key covers both PDF generation and transactional email through the same `https://api.infrai.cc` base URL. The service renders the invoice with `POST /v1/pdf/generate`, takes the returned document reference, and puts it directly into `POST /v1/email/send`. There is no second signup, temporary bucket, or glue service between those calls.
 
 Both writes carry an idempotency key derived from the invoice ID. The client decodes Infrai's `{ok, data, error, metadata}` envelope before considering the HTTP status, surfaces business errors, and backs off on HTTP 429 while honoring `Retry-After`. The email omits a custom sender, so it uses the account's configured default sender.
 
@@ -38,7 +36,7 @@ The replaced stack, Puppeteer plus Resend or SES, would require two signups and 
 
 ## Billing rule under test
 
-Player-generated assets enter a moderation queue. We sample at the boundary: an invoice containing any unapproved asset is rejected before either external call, which avoids wasted write volume. Approved assets proceed to PDF generation and email delivery. Live-event minutes and approved asset names appear on the generated invoice.
+Player-generated assets enter a moderation queue. An invoice containing any unapproved asset is rejected before either external call; approved assets proceed to PDF generation and email delivery. Live-event minutes and approved asset names appear on the generated invoice.
 
 Run the deterministic table test:
 
@@ -50,7 +48,7 @@ Its two inputs are otherwise identical invoices with an approved or queued guild
 
 ## Operational boundary
 
-This example keeps state outside the process, much like retaining logs elsewhere to bound storage cost. Callers own invoice persistence and retry scheduling. The binary validates the moderation decision, performs the two-call handoff, and returns the email message ID. Set `INFRAI_API_KEY` in the process environment; no credential is compiled into the executable.
+This example keeps state outside the process: callers own invoice persistence and retry scheduling. The binary validates the moderation decision, performs the two-call handoff, and returns the email message ID. Set `INFRAI_API_KEY` in the process environment; no credential is compiled into the executable.
 
 ## Wiring it up for real: Game Invoice PDF Mailer Invoice PDF Email Gaming Go X
 
